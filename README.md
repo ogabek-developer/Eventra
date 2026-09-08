@@ -1,84 +1,139 @@
-# Eventra — Backend
+# Eventra — Backend (O'zbek tilida to'liq qo'llanma)
 
-Event booking platform backend built with NestJS, TypeScript, PostgreSQL and Sequelize.
+Eventra — bu **tadbirlarni bron qilish platformasi** (event booking platform) uchun yozilgan
+backend qismi. NestJS, TypeScript, PostgreSQL va Sequelize asosida noldan yaratilgan.
 
-## Tech stack
-NestJS, TypeScript, PostgreSQL, Sequelize (`sequelize-typescript`), JWT (`passport-jwt`), bcrypt,
-Nodemailer, class-validator / class-transformer, Multer, Swagger, Helmet, `@nestjs/throttler`.
+## 1. Loyihaning maqsadi
 
-## 1. Install dependencies
+Eventra quyidagi jarayonni ta'minlaydi:
+
+1. Foydalanuvchi ro'yxatdan o'tadi va emailini OTP kod orqali tasdiqlaydi.
+2. Tizimga kiradi (login) va JWT tokenlar oladi.
+3. Mavjud tadbirlarni (concert, konferensiya, teatr va h.k.) ko'radi.
+4. Tadbir o'tkaziladigan joy (venue)dagi bo'sh o'rindiqni (seat) tanlab, **booking** (bron) qiladi.
+5. Booking uchun **to'lov (payment)** amalga oshiradi.
+6. Admin esa venue, seat, event yaratadi, o'zgartiradi, o'chiradi va bookinglarni boshqaradi.
+
+Resurslar orasidagi bog'lanish quyidagicha:
+
+```
+Venue  →  Seats   (venue ichidagi o'rindiqlar)
+Venue  →  Events  (shu venue'da bo'ladigan tadbirlar)
+User + Event + Seat  →  Booking
+Booking  →  Payment
+```
+
+## 2. Ishlatilgan texnologiyalar
+
+| Texnologiya | Vazifasi |
+|---|---|
+| **NestJS + TypeScript** | Backend freymvork va tip xavfsizligi |
+| **PostgreSQL** | Ma'lumotlar bazasi |
+| **Sequelize (sequelize-typescript)** | ORM — modellar, relationlar, tranzaksiyalar |
+| **JWT + Passport (passport-jwt)** | Autentifikatsiya (access/refresh token) |
+| **bcrypt** | Parollarni va refresh tokenlarni xeshlash |
+| **Nodemailer** | OTP kodlarni email orqali yuborish |
+| **class-validator / class-transformer** | Kiruvchi requestlarni validatsiya qilish |
+| **Multer** | Profil rasmi (photo) yuklash |
+| **Swagger** | API hujjatlari (interaktiv test qilish) |
+| **Helmet, CORS, @nestjs/throttler** | Xavfsizlik va so'rovlarni cheklash (rate limiting) |
+
+## 3. O'rnatish va ishga tushirish
+
+### 3.1. Paketlarni o'rnatish
 ```bash
 npm install
 ```
 
-## 2. Configure environment
-Copy `.env.example` to `.env` and fill in real values (a working `.env` with the values from the
-technical spec is already included for local development — update the DB/SMTP credentials to match
-your machine before running).
+### 3.2. `.env` faylini sozlash
+`.env.example` faylidan nusxa olib `.env` nomi bilan saqlang, so'ng haqiqiy qiymatlarni kiriting
+(baza paroli, SMTP ma'lumotlari, JWT secretlar va h.k.). Loyihada ishlab chiqish (development) uchun
+tayyor `.env` fayli ham mavjud — faqat o'z kompyuteringizdagi baza va SMTP ma'lumotlariga moslab
+o'zgartiring.
 
-## 3. Create the PostgreSQL database
+### 3.3. PostgreSQL bazasini yaratish
 ```bash
 psql -U postgres -c "CREATE DATABASE eventra;"
 ```
-Sequelize is configured with `synchronize: true` for development, so tables are created
-automatically on first boot (including the unique partial index used for double-booking
-protection).
+Sequelize development rejimida `synchronize: true` bilan sozlangan, ya'ni server birinchi marta
+ishga tushganda barcha jadvallar (shu jumladan bir seatni ikki marta bron qilishning oldini oluvchi
+unique index) avtomatik yaratiladi.
 
-## 4. Run the server
+### 3.4. Serverni ishga tushirish
 ```bash
 npm run start:dev
 ```
-The API is served at `http://localhost:4000/api`.
-Swagger docs: `http://localhost:4000/api/docs`.
+API manzili: `http://localhost:4000/api`
+Swagger hujjatlari: `http://localhost:4000/api/docs`
 
-On boot, the app automatically bootstraps the initial **Super Admin** account using
-`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env` (role `ADMIN`, `is_super: true`).
+Server ishga tushganda `.env`dagi `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` asosida birinchi
+**Super Admin** akkaunt avtomatik yaratiladi (`role: ADMIN`, `is_super: true`).
 
-## Project structure
+## 4. Loyiha strukturasi
+
 ```
 src/
-├── auth/            # register, OTP, login, JWT access/refresh, password flows
-├── users/            # user model, CRUD, profile photo upload
-├── mail/             # Nodemailer OTP email delivery
-├── venues/           # venue CRUD
-├── seats/            # seat CRUD (belongs to venue)
-├── events/           # event CRUD (belongs to venue)
-├── bookings/          # booking creation with transaction + row locking
-├── payments/          # payment creation, booking confirmation
-├── common/            # enums, guards, decorators, filters, utils
-├── config/            # Sequelize database configuration
+├── auth/       → ro'yxatdan o'tish, OTP, login, JWT access/refresh, parol jarayonlari
+├── users/      → user modeli, CRUD, profil rasmi yuklash
+├── mail/       → Nodemailer orqali OTP email yuborish
+├── venues/     → venue (joy) CRUD
+├── seats/      → seat (o'rindiq) CRUD — venue'ga tegishli
+├── events/     → event (tadbir) CRUD — venue'ga tegishli
+├── bookings/   → booking yaratish (tranzaksiya + row-locking bilan)
+├── payments/   → to'lov yaratish, bookingni tasdiqlash
+├── common/     → enumlar, guardlar, dekoratorlar, filterlar, yordamchi funksiyalar
+├── config/     → Sequelize baza konfiguratsiyasi
 ├── app.module.ts
 └── main.ts
 ```
 
-## Key design notes
-- **Global prefix**: every route is served under `/api` (`app.setGlobalPrefix('api')`); controllers
-  only declare their own local path (e.g. `@Controller('auth')`).
-- **Roles**: only `USER` and `ADMIN` exist. Super Admin is `role = ADMIN` with `is_super = true`.
-  The last active Super Admin can never be deleted or demoted (`UsersService.remove`,
-  `AuthService.ensureSuperAdmin`).
-- **OTP**: 6-digit numeric string (leading zeros preserved), generated with `OTP_LENGTH`, expires
-  after `OTP_EXPIRES_IN` — used both for e-mail verification (`VERIFY_EMAIL`) and password recovery
-  (`FORGOT_PASSWORD`).
-- **Tokens**: access and refresh tokens use separate secrets/lifetimes from `.env`. Only the
-  **hash** of the refresh token is stored on the user row; `refresh`/`logout` compare against and
-  invalidate that hash.
-- **Double-booking protection**: `bookings` has a partial unique index on
-  `(event_id, seat_id) WHERE status <> 'CANCELLED'` at the database level, and `BookingsService.create`
-  additionally locks the event/seat/existing-booking rows (`SELECT ... FOR UPDATE`) inside a
-  Sequelize transaction before creating the booking + payment records.
-- **Security**: Helmet, CORS, and a global `ThrottlerGuard` are enabled; `login`, `resend-otp`, and
-  `forgot-password` carry tighter per-route throttling.
-- **Response security**: `User.toJSON()` strips `hashed_password`, `hashed_refresh_token`, `otp`,
-  `otp_time`, and `otp_type` from every serialized response.
+## 5. Muhim texnik qarorlar (nega shunday qilingan)
 
-## Manual test flow
-1. `POST /api/auth/register`
-2. `POST /api/auth/verify-otp` (code delivered by e-mail; use `resend-otp` if it expires)
-3. `POST /api/auth/login` → returns `access_token` + `refresh_token`
-4. `POST /api/auth/refresh`, `POST /api/auth/logout`
-5. `POST /api/auth/forgot-password` → `POST /api/auth/reset-password`
-6. `PATCH /api/auth/change-password` (requires `Authorization: Bearer <access_token>`)
-7. Admin (login with `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`): CRUD `/api/venues`, `/api/seats`,
-   `/api/events`
-8. User: `POST /api/bookings`, `GET /api/bookings`, `POST /api/payments`
+- **Global prefix**: barcha route'lar `/api` bilan boshlanadi (`app.setGlobalPrefix('api')`);
+  controllerlarning o'zida faqat mahalliy nom yoziladi (masalan, `@Controller('auth')`).
+- **Rollar**: faqat `USER` va `ADMIN` mavjud. Super Admin — bu `role = ADMIN` va `is_super = true`
+  kombinatsiyasi. Tizimdagi oxirgi faol Super Adminni hech qachon o'chirib yoki demote qilib
+  bo'lmaydi (`UsersService.remove`, `AuthService.ensureSuperAdmin` shu qoidani ta'minlaydi).
+- **OTP**: 6 xonali raqamli string (leading zero — masalan `048213` — yo'qolmaydi), `OTP_LENGTH`
+  orqali generatsiya qilinadi, `OTP_EXPIRES_IN` vaqtida amal qiladi. Ikki xil maqsadda ishlatiladi:
+  email tasdiqlash (`VERIFY_EMAIL`) va parolni tiklash (`FORGOT_PASSWORD`).
+- **Tokenlar**: access va refresh tokenlar alohida secret va alohida amal qilish muddatiga ega
+  (`.env`dan olinadi). Bazada faqat refresh tokenning **xesh (hash)** qiymati saqlanadi — `refresh`
+  va `logout` amallari shu xesh bilan solishtirib ishlaydi va uni bekor qiladi.
+- **Ikki marta bron qilishning oldini olish (double-booking)**: `bookings` jadvalida
+  `(event_id, seat_id) WHERE status <> 'CANCELLED'` bo'yicha **unique partial index** bor (baza
+  darajasida himoya), bundan tashqari `BookingsService.create` metodi Sequelize tranzaksiyasi
+  ichida event/seat/mavjud booking qatorlarini `SELECT ... FOR UPDATE` bilan lock qiladi — ya'ni
+  ikki qatlamli himoya.
+- **Xavfsizlik**: Helmet, CORS va global `ThrottlerGuard` yoqilgan; `login`, `resend-otp`,
+  `forgot-password` kabi endpointlar alohida qattiqroq rate-limitga ega (spam/brute-force'dan
+  himoya).
+- **Response xavfsizligi**: `User.toJSON()` metodi har bir javobdan `hashed_password`,
+  `hashed_refresh_token`, `otp`, `otp_time`, `otp_type` maydonlarini avtomatik olib tashlaydi —
+  bu ma'lumotlar clientga hech qachon yuborilmaydi.
+
+## 6. Qo'lda sinab ko'rish tartibi (test flow)
+
+1. `POST /api/auth/register` — ro'yxatdan o'tish
+2. `POST /api/auth/verify-otp` — emailga kelgan kod bilan tasdiqlash (kod muddati o'tsa
+   `resend-otp` ishlatiladi)
+3. `POST /api/auth/login` → `access_token` va `refresh_token` qaytaradi
+4. `POST /api/auth/refresh`, `POST /api/auth/logout` — token yangilash va chiqish
+5. `POST /api/auth/forgot-password` → `POST /api/auth/reset-password` — parolni tiklash
+6. `PATCH /api/auth/change-password` — parolni almashtirish (`Authorization: Bearer <token>` kerak)
+7. Admin sifatida (`SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` bilan login qilib): `/api/venues`,
+   `/api/seats`, `/api/events` — CRUD amallarini sinash
+8. Oddiy user sifatida: `POST /api/bookings`, `GET /api/bookings`, `POST /api/payments`
+
+## 7. Kim nima qila oladi (ruxsatlar jadvali)
+
+| Amal | USER | ADMIN | Super Admin |
+|---|---|---|---|
+| Ro'yxatdan o'tish / login / OTP / parol amallari | ✅ | ✅ | ✅ |
+| O'z profilini tahrirlash, rasm yuklash | ✅ | ✅ | ✅ |
+| Event / Venue / Seat ko'rish | ✅ | ✅ | ✅ |
+| Event / Venue / Seat yaratish, o'zgartirish, o'chirish | ❌ | ✅ | ✅ |
+| Booking yaratish, faqat o'z bookinglarini ko'rish | ✅ | ✅ (hammasini) | ✅ (hammasini) |
+| Barcha foydalanuvchilarni ko'rish / o'chirish | ❌ | ✅ | ✅ |
+| Register orqali o'zini ADMIN qilish | ❌ (imkonsiz) | — | — |
+| Oxirgi Super Adminni o'chirish / demote qilish | — | ❌ | ❌ (o'zini ham) |
