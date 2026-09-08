@@ -1,4 +1,4 @@
-# Eventra — Backend (O'zbek tilida to'liq qo'llanma)
+# Eventra — Backend 
 
 Eventra — bu **tadbirlarni bron qilish platformasi** (event booking platform) uchun yozilgan
 backend qismi. NestJS, TypeScript, PostgreSQL va Sequelize asosida noldan yaratilgan.
