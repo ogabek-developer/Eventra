@@ -10,12 +10,12 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST'),
-      port: Number(this.configService.get<string>('SMTP_PORT')),
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
       secure: false,
       auth: {
-        user: this.configService.get<string>('SMTP_USER'),
-        pass: this.configService.get<string>('SMTP_PASSWORD'),
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
       },
     });
   }
@@ -41,7 +41,7 @@ export class MailService {
 
     try {
       await this.transporter.sendMail({
-        from: this.configService.get<string>('SMTP_USER'),
+        from: process.env.SMTP_USER,
         to: email,
         subject,
         html,
